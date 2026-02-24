@@ -496,6 +496,18 @@ pub trait Handler {
     /// OSC to set window title.
     fn set_title(&mut self, _: Option<String>) {}
 
+    /// FinalTerm/OSC 133 semantic markers.
+    ///
+    /// Shell integration can emit `OSC 133;...` sequences to delineate prompts, inputs, and
+    /// command outputs. Terminals can use these markers to implement features like IDE-style
+    /// output folding.
+    ///
+    /// This hook is called with parameters *after* the leading `133`, split on `;`.
+    /// Examples:
+    /// - `OSC 133;P BEL` => params `[b"P"]`
+    /// - `OSC 133;D;0 BEL` => params `[b"D", b"0"]`
+    fn osc133(&mut self, _params: &[&[u8]]) {}
+
     /// Set the cursor style.
     fn set_cursor_style(&mut self, _: Option<CursorStyle>) {}
 
@@ -1346,6 +1358,12 @@ where
         }
 
         match params[0] {
+            // FinalTerm semantic prompt markers.
+            b"133" => {
+                // Forward parameters after the "133" prefix.
+                self.handler.osc133(params.get(1..).unwrap_or_default());
+            }
+
             // Set window title.
             b"0" | b"2" => {
                 if params.len() >= 2 {
